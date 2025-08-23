@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+{% block title %}Home - Cartoonizer AI{% endblock %}
+{% block content %}
+<div class="text-center mb-12">
+    <h1 class="text-5xl font-bold">AI Image Creation Studio</h1>
+    <p class="text-xl text-gray-500 mt-2">Bring your imagination to life.</p>
+</div>
+
+<div class="grid md:grid-cols-2 gap-8">
+    <div class="bg-white p-8 rounded-lg shadow-lg">
+        <h2 class="text-3xl font-bold mb-4">1. Photo to Cartoon</h2>
+        <form id="upload-form">
+            <input type="file" id="file-upload" name="file" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" accept=".png, .jpg, .jpeg">
+            {% if session.user_id %}
+            <div class="my-4">
+                <label class="inline-flex items-center">
+                    <input type="checkbox" id="is-public-cartoon" class="form-checkbox h-5 w-5 text-blue-600">
+                    <span class="ml-2 text-gray-700">Make this creation public</span>
+                </label>
+            </div>
+            {% endif %}
+            <button type="submit" class="mt-4 w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600">Cartoonize!</button>
+        </form>
+        <div id="cartoon-result" class="mt-6 hidden">
+             </div>
+    </div>
+
+    <div class="bg-white p-8 rounded-lg shadow-lg">
+        <h2 class="text-3xl font-bold mb-4">2. Text to Image (AI)</h2>
+        <form id="text-to-image-form">
+            <textarea id="prompt" class="w-full p-2 border border-gray-300 rounded-md" rows="3" placeholder="e.g., A robot cat drinking coffee on Mars, photorealistic"></textarea>
+            {% if session.user_id %}
+            <div class="my-4">
+                <label class="inline-flex items-center">
+                    <input type="checkbox" id="is-public-text" class="form-checkbox h-5 w-5 text-blue-600">
+                    <span class="ml-2 text-gray-700">Make this creation public</span>
+                </label>
+            </div>
+            {% endif %}
+            <button type="submit" class="mt-4 w-full bg-purple-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-600">Generate!</button>
+        </form>
+        <div id="text-image-result" class="mt-6 hidden text-center">
+             </div>
+    </div>
+</div>
+
+<div id="loading-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-xl text-center">
+        <div class="loader mx-auto"></div>
+        <p class="mt-4 text-lg">AI is thinking...</p>
+    </div>
+</div>
+
+<script>
+    // JavaScript for handling form submissions via Fetch API
+    const uploadForm = document.getElementById('upload-form');
+    const textToImageForm = document.getElementById('text-to-image-form');
+    const loadingModal = document.getElementById('loading-modal');
+
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loadingModal.classList.remove('hidden');
+        const formData = new FormData();
+        formData.append('file', document.getElementById('file-upload').files[0]);
+        formData.append('is_public', document.getElementById('is-public-cartoon')?.checked || false);
+
+        const response = await fetch('/upload-cartoon', { method: 'POST', body: formData });
+        const data = await response.json();
+        
+        loadingModal.classList.add('hidden');
+        const resultDiv = document.getElementById('cartoon-result');
+        if(data.error) {
+            resultDiv.innerHTML = `<p class="text-red-500">${data.error}</p>`;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div><h3 class="font-bold">Original</h3><img src="data:image/jpeg;base64,${data.original}" class="rounded-lg"/></div>
+                    <div><h3 class="font-bold">Cartoon</h3><img src="data:image/jpeg;base64,${data.cartoon}" class="rounded-lg"/></div>
+                </div>
+            `;
+        }
+        resultDiv.classList.remove('hidden');
+    });
+
+    textToImageForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loadingModal.classList.remove('hidden');
+        const prompt = document.getElementById('prompt').value;
+        const isPublic = document.getElementById('is-public-text')?.checked || false;
+
+        const response = await fetch('/generate-from-text', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ prompt: prompt, is_public: isPublic })
+        });
+        const data = await response.json();
+
+        loadingModal.classList.add('hidden');
+        const resultDiv = document.getElementById('text-image-result');
+        if(data.error) {
+            resultDiv.innerHTML = `<p class="text-red-500">${data.error}</p>`;
+        } else {
+            resultDiv.innerHTML = `
+                <h3 class="font-bold mb-2">Generated Image</h3>
+                <img src="${data.image_url}" class="rounded-lg mx-auto"/>
+                <a href="${data.image_url}" download="ai-generated-image.png" class="mt-4 inline-block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Download</a>
+            `;
+        }
+        resultDiv.classList.remove('hidden');
+    });
+</script>
+{% endblock %}

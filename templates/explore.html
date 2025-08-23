@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block title %}Explore Public Creations{% endblock %}
+{% block content %}
+<h1 class="text-4xl font-bold text-center mb-8">Explore Creations</h1>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for item in creations %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            {% if item.type == 'cartoon' %}
+                <img src="data:image/jpeg;base64,{{ item.generated_image_b64 }}" class="w-full h-64 object-cover">
+                <div class="p-4">
+                    <p class="text-sm text-gray-500">Cartoon Conversion</p>
+                </div>
+            {% elif item.type == 'text-to-image' %}
+                <img src="{{ item.generated_image_url }}" class="w-full h-64 object-cover">
+                <div class="p-4">
+                    <p class="text-sm text-gray-500">AI Generation</p>
+                    <p class="font-mono bg-gray-100 p-2 rounded mt-2 text-xs">"{{ item.prompt }}"</p>
+                </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <p class="text-center col-span-full text-gray-500">No public creations yet. Be the first!</p>
+    {% endfor %}
+</div>
+{% endblock %}
