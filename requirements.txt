@@ -3,3 +3,4 @@ opencv-python
 numpy
 firebase-admin
 replicate
+gunicorn
