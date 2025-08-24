@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block title %}View Creation - Art Weaver AI{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+            <a href="{{ url_for('user_profile', username=creator.username) }}" class="flex items-center space-x-3">
+                <img src="{{ creator.photoURL or 'https://placehold.co/48x48/7c3aed/ffffff?text=' + creator.username[0]|upper }}" class="w-12 h-12 rounded-full border-2 border-blue-400">
+                <div>
+                    <p class="font-bold text-lg">{{ creator.username }}</p>
+                    <p class="text-sm text-gray-500">View Profile</p>
+                </div>
+            </a>
+            <button class="favorite-btn p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" data-id="{{ request.view_args.creation_id }}">
+            </button>
+        </div>
+
+        <img src="data:image/png;base64,{{ creation.generated_image_b64 }}" class="w-full rounded-lg mx-auto mb-4">
+        
+        {% if creation.prompt %}
+            <div class="mb-6">
+                <p class="font-semibold">Prompt:</p>
+                <p class="font-mono bg-gray-100 dark:bg-gray-700 p-3 rounded text-sm">"{{ creation.prompt }}"</p>
+            </div>
+        {% endif %}
+
+        <div class="border-t dark:border-gray-700 pt-4 flex items-center space-x-4">
+            <span class="font-semibold">Share:</span>
+            <button id="copy-link-btn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" title="Copy Link">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            </button>
+            <a id="share-x-btn" href="#" target="_blank" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" title="Share on X">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
+            </a>
+             <a id="share-fb-btn" href="#" target="_blank" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" title="Share on Facebook">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"></path></svg>
+            </a>
+        </div>
+        <span id="copy-status" class="text-sm text-green-500 h-4 inline-block ml-2"></span>
+    </div>
+</div>
+{% endblock %}

@@ -2,6 +2,5 @@ Flask
 opencv-python
 numpy
 firebase-admin
-replicate
 requests
 gunicorn

@@ -1,22 +1,36 @@
-<!-- templates/explore.html -->
 {% extends "layout.html" %}
 {% block title %}Explore - Art Weaver AI{% endblock %}
 {% block content %}
-<h1 class="text-4xl font-bold text-center mb-4">Explore Public Creations</h1>
-<div class="max-w-2xl mx-auto mb-8">
-    <form method="GET" action="{{ url_for('explore') }}" class="flex items-center">
-        <input type="search" name="tags" placeholder="Search by tags (e.g., cat, space, abstract)" class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ search_query }}">
-        <button type="submit" class="bg-blue-500 text-white p-3 rounded-r-lg hover:bg-blue-600">Search</button>
+<div class="max-w-3xl mx-auto mb-8 text-center">
+    <h1 class="text-4xl font-bold mb-2">Explore Public Creations</h1>
+    <p class="text-gray-500">Discover art and artists in the community.</p>
+    <form method="GET" action="{{ url_for('explore') }}" class="mt-6 flex items-center border border-gray-300 dark:border-gray-600 rounded-full shadow-lg focus-within:ring-2 focus-within:ring-blue-500 bg-white dark:bg-gray-800 pr-2">
+        <input type="search" name="q" placeholder="Search by tags or usernames (e.g., space, cat, artist_name)" class="w-full p-4 bg-transparent rounded-full focus:outline-none" value="{{ search_query }}">
+        <button type="submit" class="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 flex-shrink-0">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </button>
     </form>
 </div>
+
+{% if users %}
+    <h2 class="text-2xl font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-6">Users Found</h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
+        {% for user in users %}
+            <a href="{{ url_for('user_profile', username=user.username) }}" class="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow">
+                <img src="{{ user.photoURL or 'https://placehold.co/128x128/7c3aed/ffffff?text=' + user.username[0]|upper }}" alt="{{ user.username }}" class="w-24 h-24 rounded-full mx-auto mb-2 border-2 border-blue-400">
+                <p class="font-semibold truncate">{{ user.username }}</p>
+            </a>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<h2 class="text-2xl font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-6">Creations</h2>
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {% for item in creations %}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden group">
-            {% if item.type == 'cartoon' %}
-                <img src="data:image/jpeg;base64,{{ item.generated_image_b64 }}" class="w-full h-72 object-cover transform group-hover:scale-105 transition-transform duration-300">
-            {% elif item.type == 'text-to-image' %}
+            <a href="{{ url_for('view_creation', creation_id=item.id) }}">
                 <img src="data:image/png;base64,{{ item.generated_image_b64 }}" class="w-full h-72 object-cover transform group-hover:scale-105 transition-transform duration-300">
-            {% endif %}
+            </a>
             <div class="p-4">
                 {% if item.prompt %}
                     <p class="font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded text-xs truncate">"{{ item.prompt }}"</p>

@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block title %}Welcome - Art Weaver AI{% endblock %}
+{% block content %}
+<div id="welcome-content" class="max-w-2xl mx-auto mt-10 text-center">
+    <h1 class="text-4xl font-bold">Welcome to Art Weaver AI!</h1>
+    <p class="text-lg text-gray-500 dark:text-gray-400 mt-2">Let's set up your profile.</p>
+
+    <div class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg mt-8">
+        <h2 class="text-2xl font-bold mb-4">Set Your Profile Picture (Optional)</h2>
+        <div id="profile-pic-upload-area">
+             <label for="profile-pic-input" class="w-full h-40 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-4">
+                <p>Click to select an image</p>
+                <span id="file-name" class="text-sm text-gray-500 mt-1"></span>
+            </label>
+            <input type="file" id="profile-pic-input" class="hidden" accept=".png, .jpg, .jpeg">
+        </div>
+
+        <div id="image-preview-area" class="hidden grid-cols-1 md:grid-cols-2 gap-4 my-4">
+            <div>
+                <h4 class="font-semibold mb-2">Original</h4>
+                <img id="original-preview" src="" alt="Original Preview" class="rounded-lg w-full">
+            </div>
+            <div id="cartoon-preview-container" class="hidden">
+                <h4 class="font-semibold mb-2">Cartoon Version</h4>
+                <img id="cartoon-preview" src="" alt="Cartoon Preview" class="rounded-lg w-full">
+            </div>
+        </div>
+        
+        <div id="action-buttons" class="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
+             <button id="cartoonize-btn" class="w-full sm:w-auto bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600 transition-all hidden">Cartoonize & Set</button>
+             <a href="/profile" id="skip-btn" class="w-full sm:w-auto bg-gray-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600 transition-all">Skip for Now</a>
+        </div>
+        <p id="upload-status" class="text-center mt-4 h-5"></p>
+    </div>
+</div>
+{% endblock %}
