@@ -1,41 +1,15 @@
+<!-- templates/login.html -->
 {% extends "layout.html" %}
-{% block title %}Login{% endblock %}
+{% block title %}Login - Art Weaver AI{% endblock %}
 {% block content %}
-<div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
-    <h2 class="text-3xl font-bold mb-6 text-center">Login</h2>
+<div class="max-w-md mx-auto bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg mt-10">
+    <h2 class="text-3xl font-bold mb-6 text-center">Welcome Back</h2>
     <form id="login-form">
-        <div class="mb-4">
-            <label for="email" class="block text-gray-700">Email</label>
-            <input type="email" id="email" class="w-full p-2 border border-gray-300 rounded-md" required>
-        </div>
-        <div class="mb-6">
-            <label for="password" class="block text-gray-700">Password</label>
-            <input type="password" id="password" class="w-full p-2 border border-gray-300 rounded-md" required>
-        </div>
+        <div class="mb-4"><label for="email" class="block mb-1">Email</label><input type="email" id="email" class="w-full p-3 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" required></div>
+        <div class="mb-6"><label for="password" class="block mb-1">Password</label><input type="password" id="password" class="w-full p-3 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" required></div>
         <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600">Login</button>
     </form>
-    <p id="login-error" class="text-red-500 mt-4 text-center"></p>
+    <p id="form-error" class="text-red-500 mt-4 text-center h-5"></p>
+    <p class="text-center mt-4">Don't have an account? <a href="{{ url_for('register') }}" class="text-blue-500 hover:underline">Sign up</a></p>
 </div>
-<script>
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const errorP = document.getElementById('login-error');
-    
-    // In a real app, you would use Firebase Client SDK to sign in and get an ID token.
-    // This is a simplified server-side session example.
-    const response = await fetch('/login', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email, password }) // Note: This is not secure for passwords.
-    });
-    const data = await response.json();
-    if(data.status === 'success') {
-        window.location.href = '/';
-    } else {
-        errorP.textContent = data.message;
-    }
-});
-</script>
 {% endblock %}

@@ -1,0 +1,26 @@
+<!-- templates/profile.html -->
+{% extends "layout.html" %}
+{% block title %}My Profile - Art Weaver AI{% endblock %}
+{% block content %}
+<div id="profile-content" class="opacity-0 transition-opacity duration-500">
+    <div class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg mb-8">
+        <div class="flex flex-col md:flex-row items-center md:space-x-8">
+            <img id="profile-avatar-img" src="https://placehold.co/128x128/7c3aed/ffffff?text=A" alt="Profile Picture" class="w-32 h-32 rounded-full mb-4 md:mb-0 border-4 border-blue-400">
+            <div>
+                <h1 id="profile-username" class="text-4xl font-bold text-center md:text-left"></h1>
+                <p id="profile-email" class="text-lg text-gray-500 dark:text-gray-400 text-center md:text-left"></p>
+                <div class="mt-4 flex items-center justify-center md:justify-start space-x-4">
+                    <div class="text-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                        <p class="text-2xl font-bold text-blue-500" id="profile-points">0</p>
+                        <p class="text-sm text-gray-500">Points</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <h2 class="text-3xl font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-6">My Creations</h2>
+    <div id="profile-creations" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Creations will be loaded here by JavaScript -->
+    </div>
+</div>
+{% endblock %}

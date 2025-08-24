@@ -1,0 +1,9 @@
+# Ignore Firebase secret key
+firebase-service-account.json
+
+# Ignore Python's virtual environment folder
+venv/
+__pycache__/
+
+# Ignore local upload folder
+uploads/

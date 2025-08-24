@@ -1,25 +1,37 @@
+<!-- templates/explore.html -->
 {% extends "layout.html" %}
-{% block title %}Explore Public Creations{% endblock %}
+{% block title %}Explore - Art Weaver AI{% endblock %}
 {% block content %}
-<h1 class="text-4xl font-bold text-center mb-8">Explore Creations</h1>
+<h1 class="text-4xl font-bold text-center mb-4">Explore Public Creations</h1>
+<div class="max-w-2xl mx-auto mb-8">
+    <form method="GET" action="{{ url_for('explore') }}" class="flex items-center">
+        <input type="search" name="tags" placeholder="Search by tags (e.g., cat, space, abstract)" class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ search_query }}">
+        <button type="submit" class="bg-blue-500 text-white p-3 rounded-r-lg hover:bg-blue-600">Search</button>
+    </form>
+</div>
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {% for item in creations %}
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden group">
             {% if item.type == 'cartoon' %}
-                <img src="data:image/jpeg;base64,{{ item.generated_image_b64 }}" class="w-full h-64 object-cover">
-                <div class="p-4">
-                    <p class="text-sm text-gray-500">Cartoon Conversion</p>
-                </div>
+                <img src="data:image/jpeg;base64,{{ item.generated_image_b64 }}" class="w-full h-72 object-cover transform group-hover:scale-105 transition-transform duration-300">
             {% elif item.type == 'text-to-image' %}
-                <img src="{{ item.generated_image_url }}" class="w-full h-64 object-cover">
-                <div class="p-4">
-                    <p class="text-sm text-gray-500">AI Generation</p>
-                    <p class="font-mono bg-gray-100 p-2 rounded mt-2 text-xs">"{{ item.prompt }}"</p>
-                </div>
+                <img src="data:image/png;base64,{{ item.generated_image_b64 }}" class="w-full h-72 object-cover transform group-hover:scale-105 transition-transform duration-300">
             {% endif %}
+            <div class="p-4">
+                {% if item.prompt %}
+                    <p class="font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded text-xs truncate">"{{ item.prompt }}"</p>
+                {% endif %}
+                {% if item.tags %}
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        {% for tag in item.tags %}
+                            <span class="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 px-2 py-1 rounded-full">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
         </div>
     {% else %}
-        <p class="text-center col-span-full text-gray-500">No public creations yet. Be the first!</p>
+        <p class="text-center col-span-full text-gray-500 dark:text-gray-400">No public creations found. Try a different search or be the first to create something!</p>
     {% endfor %}
 </div>
 {% endblock %}
