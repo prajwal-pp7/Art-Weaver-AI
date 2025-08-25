@@ -1,4 +1,5 @@
 import os
+import sys
 import cv2
 import numpy as np
 import base64
@@ -10,6 +11,13 @@ import firebase_admin
 from firebase_admin import credentials, auth, firestore
 from whitenoise import WhiteNoise
 
+firebase_vars = [
+    "FIREBASE_API_KEY", "FIREBASE_AUTH_DOMAIN", "FIREBASE_PROJECT_ID",
+    "FIREBASE_STORAGE_BUCKET", "FIREBASE_MESSAGING_SENDER_ID", "FIREBASE_APP_ID"
+]
+if not all(os.environ.get(var) for var in firebase_vars):
+    sys.stderr.write("CRITICAL ERROR: One or more Firebase environment variables are not set.\n")
+
 app = Flask(__name__)
 app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
 
@@ -18,6 +26,7 @@ try:
     firebase_admin.initialize_app(cred)
     db = firestore.client()
 except Exception as e:
+    sys.stderr.write(f"Warning: Could not initialize Firebase Admin SDK: {e}\n")
     db = None
 
 UPLOAD_FOLDER = 'uploads'
@@ -82,6 +91,8 @@ def firebase_config():
         "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID"),
         "appId": os.environ.get("FIREBASE_APP_ID")
     }
+    if not all(config.values()):
+        return jsonify({"error": "Firebase configuration is incomplete on the server."}), 500
     return jsonify(config)
 
 @app.route('/profile')
