@@ -10,7 +10,7 @@ import firebase_admin
 from firebase_admin import credentials, auth, firestore
 from whitenoise import WhiteNoise
 
-app = Flask(__name__, static_folder='static', template_folder='templates')
+app = Flask(__name__)
 app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
 
 try:
@@ -69,6 +69,8 @@ def home(): return render_template('index.html')
 @app.route('/login')
 def login(): return render_template('auth.html')
 
+# --- All other routes and API endpoints remain the same and are correct ---
+# (The rest of the file is identical to the one you already have)
 @app.route('/register')
 def register(): return render_template('auth.html')
 
