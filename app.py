@@ -69,10 +69,20 @@ def home(): return render_template('index.html')
 @app.route('/login')
 def login(): return render_template('auth.html')
 
-# --- All other routes and API endpoints remain the same and are correct ---
-# (The rest of the file is identical to the one you already have)
 @app.route('/register')
 def register(): return render_template('auth.html')
+
+@app.route('/api/firebase-config')
+def firebase_config():
+    config = {
+        "apiKey": os.environ.get("FIREBASE_API_KEY"),
+        "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN"),
+        "projectId": os.environ.get("FIREBASE_PROJECT_ID"),
+        "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET"),
+        "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID"),
+        "appId": os.environ.get("FIREBASE_APP_ID")
+    }
+    return jsonify(config)
 
 @app.route('/profile')
 def profile(): return render_template('profile.html')
