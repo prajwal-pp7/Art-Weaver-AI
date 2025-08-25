@@ -8,8 +8,10 @@ from flask import Flask, request, render_template, jsonify, send_from_directory,
 from werkzeug.utils import secure_filename
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
+from whitenoise import WhiteNoise
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
 
 try:
     cred = credentials.Certificate('firebase-service-account.json')

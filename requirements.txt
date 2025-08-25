@@ -4,3 +4,4 @@ numpy
 firebase-admin
 requests
 gunicorn
+whitenoise
