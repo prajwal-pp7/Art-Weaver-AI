@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     };
-    
+
     const heartIconEmpty = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>`;
     const heartIconFilled = `<svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364L12 7.5l7.682-1.182a4.5 4.5 0 010 6.364L12 20.364z"></path></svg>`;
     function updateFavoriteIcons() {
