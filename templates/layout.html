@@ -82,16 +82,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
-    
-    <script>
-        fetch('/api/firebase-config')
-            .then(response => response.json())
-            .then(config => {
-                firebase.initializeApp(config);
-            })
-            .catch(error => console.error("Could not fetch Firebase config:", error));
-    </script>
-
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>

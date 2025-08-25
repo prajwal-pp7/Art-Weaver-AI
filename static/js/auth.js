@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const registerContainer = document.getElementById('register-container');
     const showRegisterLink = document.getElementById('show-register');
     const showLoginLink = document.getElementById('show-login');
-
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
 
@@ -67,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const user = userCredential.user;
 
             await user.sendEmailVerification();
-            messageEl.textContent = 'Account created! Please check your email to verify your account.';
+            messageEl.textContent = 'Success! Please check your email to verify your account.';
             messageEl.classList.add('text-green-500');
 
             await db.collection('users').doc(user.uid).set({
@@ -105,12 +104,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            
             if (!userCredential.user.emailVerified) {
                 errorEl.textContent = 'Please verify your email before logging in.';
                 await auth.signOut();
                 return;
             }
-            window.location.href = '/';
+            window.location.href = '/'; 
 
         } catch (error) {
             errorEl.textContent = 'Invalid credentials. Please try again.';
