@@ -86,23 +86,18 @@
     <script>
         async function initializeFirebaseAndLoadScripts() {
             try {
-                console.log("Fetching Firebase config...");
                 const response = await fetch('/api/firebase-config');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const config = await response.json();
-                console.log("Config received:", config);
 
-                if (!config.apiKey || config.apiKey.includes("YOUR_")) {
+                if (!config.apiKey) {
                     throw new Error("Invalid API Key received from server.");
                 }
 
-                console.log("Initializing Firebase...");
                 firebase.initializeApp(config);
-                console.log("Firebase initialized. Loading main scripts...");
 
-                // Now that Firebase is initialized, load the other scripts
                 const mainScript = document.createElement('script');
                 mainScript.src = "{{ url_for('static', filename='js/main.js') }}";
                 document.body.appendChild(mainScript);
@@ -114,8 +109,6 @@
                 {% endif %}
 
             } catch (error) {
-                console.error("CRITICAL: Failed to initialize Firebase.", error);
-                // Optionally, display an error message to the user on the page
                 const body = document.querySelector('body');
                 body.innerHTML = '<div style="text-align: center; padding: 50px; color: red;"><h1>Configuration Error</h1><p>Could not load application configuration. Please try again later.</p></div>';
             }
