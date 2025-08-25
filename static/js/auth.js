@@ -47,21 +47,32 @@ document.addEventListener('DOMContentLoaded', function () {
         messageEl.textContent = 'Checking username...';
         messageEl.classList.remove('text-red-500', 'text-green-500');
 
-        const usernameCheck = await fetch('/api/check_username', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username })
-        });
-        const { isAvailable } = await usernameCheck.json();
-
-        if (!isAvailable) {
-            messageEl.textContent = 'Username is already taken.';
-            messageEl.classList.add('text-red-500');
-            return;
-        }
-
-        messageEl.textContent = 'Creating account...';
         try {
+            const usernameCheck = await fetch('/api/check_username', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+
+            if (!usernameCheck.ok) {
+                // This will catch server errors (like 500 Internal Server Error)
+                throw new Error('Server error checking username. Please try again later.');
+            }
+
+            const { isAvailable, error } = await usernameCheck.json();
+
+            if (error) {
+                // This will catch specific errors sent from the backend
+                throw new Error(error);
+            }
+
+            if (!isAvailable) {
+                messageEl.textContent = 'Username is already taken.';
+                messageEl.classList.add('text-red-500');
+                return;
+            }
+
+            messageEl.textContent = 'Creating account...';
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             const user = userCredential.user;
 
@@ -80,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setTimeout(() => { showLoginForm(); }, 5000);
 
         } catch (error) {
+            // This single catch block will handle all errors from fetch, Firebase, etc.
             messageEl.textContent = error.message;
             messageEl.classList.add('text-red-500');
         }

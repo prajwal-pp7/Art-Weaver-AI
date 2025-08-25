@@ -13,11 +13,15 @@ from whitenoise import WhiteNoise
 app = Flask(__name__)
 app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
 
+# --- Firebase Initialization ---
 try:
     cred = credentials.Certificate('firebase-service-account.json')
     firebase_admin.initialize_app(cred)
     db = firestore.client()
+    print("Firebase initialized successfully.") # Added for confirmation
 except Exception as e:
+    # This new line will print the exact error to your Render logs
+    print(f"!!!!!!!!!! FIREBASE INITIALIZATION FAILED: {e} !!!!!!!!!!!")
     db = None
 
 UPLOAD_FOLDER = 'uploads'
