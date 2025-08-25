@@ -13,14 +13,12 @@ from whitenoise import WhiteNoise
 app = Flask(__name__)
 app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
 
-# --- Firebase Initialization ---
 try:
     cred = credentials.Certificate('firebase-service-account.json')
     firebase_admin.initialize_app(cred)
     db = firestore.client()
-    print("Firebase initialized successfully.") # Added for confirmation
+    print("Firebase initialized successfully.")
 except Exception as e:
-    # This new line will print the exact error to your Render logs
     print(f"!!!!!!!!!! FIREBASE INITIALIZATION FAILED: {e} !!!!!!!!!!!")
     db = None
 
@@ -133,11 +131,23 @@ def view_creation(creation_id):
 
 @app.route('/api/check_username', methods=['POST'])
 def check_username():
-    if not db: return jsonify({'error': 'Database not configured'}), 500
-    username = request.get_json().get('username')
-    if not username: return jsonify({'error': 'Username not provided'}), 400
-    query = db.collection('users').where('username', '==', username).limit(1).get()
-    return jsonify({'isAvailable': len(query) == 0})
+    if not db: 
+        print("API Error: Database not configured")
+        return jsonify({'error': 'Database not configured'}), 500
+    try:
+        username = request.get_json().get('username')
+        if not username: 
+            return jsonify({'error': 'Username not provided'}), 400
+        
+        print(f"Checking username: {username}")
+        query = db.collection('users').where('username', '==', username).limit(1).get()
+        print(f"Query returned {len(query)} results.")
+        
+        return jsonify({'isAvailable': len(query) == 0})
+    except Exception as e:
+        # This is the most important part: it will print the hidden error to the logs.
+        print(f"!!!!!!!!!! ERROR IN /api/check_username: {e} !!!!!!!!!!!")
+        return jsonify({'error': 'A server error occurred.'}), 500
 
 @app.route('/api/upload-cartoon', methods=['POST'])
 def upload_cartoon():
