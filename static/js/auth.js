@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const showLoginLink = document.getElementById('show-login');
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
+    
+    const googleSignInButtons = document.querySelectorAll('.js-google-signin');
+    const githubSignInButtons = document.querySelectorAll('.js-github-signin');
 
     const showRegisterForm = () => {
         loginContainer.classList.add('hidden');
@@ -37,6 +40,47 @@ document.addEventListener('DOMContentLoaded', function () {
         showLoginForm();
     }
 
+    const handleSocialSignIn = async (provider) => {
+        const errorEl = document.getElementById('login-error') || document.getElementById('register-message');
+        errorEl.textContent = '';
+        try {
+            const result = await auth.signInWithPopup(provider);
+            const user = result.user;
+            const isNewUser = result.additionalUserInfo.isNewUser;
+
+            if (isNewUser) {
+                const usernameCheck = await db.collection('users').where('username', '==', user.displayName).limit(1).get();
+                const isUsernameTaken = !usernameCheck.empty;
+                const finalUsername = isUsernameTaken ? `${user.displayName}${user.uid.substring(0, 4)}` : user.displayName;
+
+                await db.collection('users').doc(user.uid).set({
+                    username: finalUsername || `user_${user.uid.substring(0, 6)}`,
+                    email: user.email,
+                    points: 10,
+                    photoURL: user.photoURL || '',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            window.location.href = '/';
+        } catch (error) {
+            errorEl.textContent = error.message;
+        }
+    };
+    
+    googleSignInButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            handleSocialSignIn(provider);
+        });
+    });
+
+    githubSignInButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const provider = new firebase.auth.GithubAuthProvider();
+            handleSocialSignIn(provider);
+        });
+    });
+
     registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('register-username').value.trim();
@@ -55,16 +99,11 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             if (!usernameCheck.ok) {
-                // This will catch server errors (like 500 Internal Server Error)
                 throw new Error('Server error checking username. Please try again later.');
             }
 
             const { isAvailable, error } = await usernameCheck.json();
-
-            if (error) {
-                // This will catch specific errors sent from the backend
-                throw new Error(error);
-            }
+            if (error) { throw new Error(error); }
 
             if (!isAvailable) {
                 messageEl.textContent = 'Username is already taken.';
@@ -88,10 +127,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            setTimeout(() => { showLoginForm(); }, 5000);
+            setTimeout(() => { showLoginForm(); window.location.href = "/login" }, 5000);
 
         } catch (error) {
-            // This single catch block will handle all errors from fetch, Firebase, etc.
             messageEl.textContent = error.message;
             messageEl.classList.add('text-red-500');
         }

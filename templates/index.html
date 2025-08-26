@@ -27,10 +27,10 @@
             <form id="upload-form" class="flex flex-col flex-grow">
                 <div class="flex-grow">
                     <label for="file-upload" class="w-full h-40 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-4">
-                        <p>Click to browse or drag & drop files</p>
+                        <p>Click to browse or drag & drop a file</p>
                         <span id="file-count" class="text-sm text-gray-500 mt-1"></span>
                     </label>
-                    <input type="file" id="file-upload" class="hidden" multiple accept="image/*">
+                    <input type="file" id="file-upload" class="hidden" accept="image/*">
                 </div>
                 <div class="mt-4">
                     <button type="submit" class="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-all">Cartoonize</button>
@@ -53,6 +53,7 @@
 </div>
 
 <div id="results-area" class="mt-12"></div>
+
 <div id="loading-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50">
     <div class="text-center text-white">
         <div class="loader mx-auto"></div>

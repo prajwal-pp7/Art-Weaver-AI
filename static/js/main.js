@@ -21,6 +21,17 @@ document.addEventListener('DOMContentLoaded', function () {
     if (themeToggle) { themeToggle.addEventListener('click', () => { document.documentElement.classList.toggle('dark'); localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); updateThemeIcon(); }); }
     updateThemeIcon();
 
+    const showApiError = (errorMsg) => {
+        const resultsArea = document.getElementById('results-area');
+        resultsArea.innerHTML = `
+            <div class="max-w-xl mx-auto bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg" role="alert">
+              <strong class="font-bold">An Error Occurred!</strong>
+              <span class="block sm:inline">${errorMsg}</span>
+            </div>
+        `;
+        resultsArea.scrollIntoView({ behavior: 'smooth' });
+    };
+
     auth.onAuthStateChanged(async user => {
         if (user && user.emailVerified) {
             guestNav.classList.add('hidden');
@@ -171,10 +182,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (document.getElementById('upload-form')) {
         const fileInput = document.getElementById('file-upload');
         const fileCountSpan = document.getElementById('file-count');
-        fileInput.addEventListener('change', () => { fileCountSpan.textContent = fileInput.files.length > 0 ? `${fileInput.files.length} file(s) selected` : ''; });
+        fileInput.addEventListener('change', () => { fileCountSpan.textContent = fileInput.files.length > 0 ? `${fileInput.files[0].name}` : ''; });
         
         document.getElementById('upload-form').addEventListener('submit', async e => {
-            e.preventDefault(); if (fileInput.files.length === 0) return;
+            e.preventDefault(); if (fileInput.files.length === 0) { showApiError('Please select a file first.'); return; }
             loadingModal.classList.remove('hidden');
             const user = auth.currentUser;
             const token = user ? await user.getIdToken() : null;
@@ -185,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             fetch('/api/upload-cartoon', { method: 'POST', headers, body: formData })
                 .then(res => res.json()).then(data => {
-                    if (data.error) { alert(data.error); return; }
+                    if (data.error) { showApiError(data.error); return; }
                     const imgSrc = `data:image/jpeg;base64,${data.cartoon}`;
                     if (data.creation_id) {
                         showPublishModal(data.creation_id, imgSrc);
@@ -197,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         document.getElementById('text-to-image-form').addEventListener('submit', async e => {
-            e.preventDefault(); const prompt = document.getElementById('prompt').value; if(!prompt) return;
+            e.preventDefault(); const prompt = document.getElementById('prompt').value; if(!prompt) { showApiError('Please enter a prompt first.'); return; }
             loadingModal.classList.remove('hidden');
             const user = auth.currentUser;
             const token = user ? await user.getIdToken() : null;
@@ -206,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             fetch('/api/generate-from-text', { method: 'POST', headers, body: JSON.stringify({ prompt }) })
                 .then(res => res.json()).then(data => {
-                    if (data.error) { alert(data.error); return; }
+                    if (data.error) { showApiError(data.error); return; }
                     if (data.creation_id) {
                         showPublishModal(data.creation_id, data.image_data_url);
                     } else {
