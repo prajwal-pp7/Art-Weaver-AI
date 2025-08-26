@@ -82,43 +82,17 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
-
+    
     <script>
-        async function initializeFirebaseAndLoadScripts() {
-            try {
-                const response = await fetch('/api/firebase-config');
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
-                }
-                const config = await response.json();
-
-                if (!config.apiKey) {
-                    throw new Error("Invalid Firebase configuration received from server.");
-                }
-
+        fetch('/api/firebase-config')
+            .then(response => response.json())
+            .then(config => {
                 firebase.initializeApp(config);
-
-                const mainScript = document.createElement('script');
-                mainScript.src = "{{ url_for('static', filename='js/main.js') }}";
-                document.body.appendChild(mainScript);
-
-                {% if request.endpoint in ['login', 'register'] %}
-                const authScript = document.createElement('script');
-                authScript.src = "{{ url_for('static', filename='js/auth.js') }}";
-                document.body.appendChild(authScript);
-                {% endif %}
-
-            } catch (error) {
-                console.error("CRITICAL: Failed to initialize Firebase.", error);
-                const mainContent = document.querySelector('main');
-                if(mainContent) {
-                    mainContent.innerHTML = `<div style="text-align: center; padding: 50px; color: red;"><h1>Application Configuration Error</h1><p>Could not load application configuration from the server. Please ensure the backend is running and environment variables are set correctly.</p><p style="margin-top: 10px; font-family: monospace; background: #eee; padding: 10px; border-radius: 5px; color: #333;">Error: ${error.message}</p></div>`;
-                }
-            }
-        }
-        document.addEventListener('DOMContentLoaded', initializeFirebaseAndLoadScripts);
+            })
+            .catch(error => console.error("Could not fetch Firebase config:", error));
     </script>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

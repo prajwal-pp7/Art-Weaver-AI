@@ -1,5 +1,4 @@
 import os
-import sys
 import cv2
 import numpy as np
 import base64
@@ -11,13 +10,6 @@ import firebase_admin
 from firebase_admin import credentials, auth, firestore
 from whitenoise import WhiteNoise
 
-firebase_vars = [
-    "FIREBASE_API_KEY", "FIREBASE_AUTH_DOMAIN", "FIREBASE_PROJECT_ID",
-    "FIREBASE_STORAGE_BUCKET", "FIREBASE_MESSAGING_SENDER_ID", "FIREBASE_APP_ID"
-]
-if not all(os.environ.get(var) for var in firebase_vars):
-    sys.stderr.write("CRITICAL ERROR: One or more Firebase environment variables are not set.\n")
-
 app = Flask(__name__)
 app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
 
@@ -25,8 +17,9 @@ try:
     cred = credentials.Certificate('firebase-service-account.json')
     firebase_admin.initialize_app(cred)
     db = firestore.client()
+    print("Firebase initialized successfully.")
 except Exception as e:
-    sys.stderr.write(f"Warning: Could not initialize Firebase Admin SDK: {e}\n")
+    print(f"!!!!!!!!!! FIREBASE INITIALIZATION FAILED: {e} !!!!!!!!!!!")
     db = None
 
 UPLOAD_FOLDER = 'uploads'
@@ -80,20 +73,6 @@ def login(): return render_template('auth.html')
 
 @app.route('/register')
 def register(): return render_template('auth.html')
-
-@app.route('/api/firebase-config')
-def firebase_config():
-    config = {
-        "apiKey": os.environ.get("FIREBASE_API_KEY"),
-        "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN"),
-        "projectId": os.environ.get("FIREBASE_PROJECT_ID"),
-        "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET"),
-        "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID"),
-        "appId": os.environ.get("FIREBASE_APP_ID")
-    }
-    if not all(config.values()):
-        return jsonify({"error": "Firebase configuration is incomplete on the server."}), 500
-    return jsonify(config)
 
 @app.route('/profile')
 def profile(): return render_template('profile.html')
@@ -152,13 +131,22 @@ def view_creation(creation_id):
 
 @app.route('/api/check_username', methods=['POST'])
 def check_username():
-    if not db: return jsonify({'error': 'Database not configured'}), 500
+    if not db: 
+        print("API Error: Database not configured")
+        return jsonify({'error': 'Database not configured'}), 500
     try:
         username = request.get_json().get('username')
-        if not username: return jsonify({'error': 'Username not provided'}), 400
+        if not username: 
+            return jsonify({'error': 'Username not provided'}), 400
+        
+        print(f"Checking username: {username}")
         query = db.collection('users').where('username', '==', username).limit(1).get()
+        print(f"Query returned {len(query)} results.")
+        
         return jsonify({'isAvailable': len(query) == 0})
     except Exception as e:
+        # This is the most important part: it will print the hidden error to the logs.
+        print(f"!!!!!!!!!! ERROR IN /api/check_username: {e} !!!!!!!!!!!")
         return jsonify({'error': 'A server error occurred.'}), 500
 
 @app.route('/api/upload-cartoon', methods=['POST'])
