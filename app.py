@@ -189,7 +189,7 @@ def generate_from_text():
     if not STABILITY_API_KEY: return jsonify({'error': 'AI image generation service is not configured.'}), 503
     
     api_host = 'https://api.stability.ai'
-    engine_id = "stable-diffusion-v1-6"
+    engine_id = "stable-diffusion-xl-1024-v1-0"
     api_url = f"{api_host}/v1/generation/{engine_id}/text-to-image"
 
     headers = {
