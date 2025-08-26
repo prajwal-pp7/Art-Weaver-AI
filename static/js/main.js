@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
     const auth = firebase.auth();
     const db = firebase.firestore();
-    const storage = firebase.storage();
     let userFavorites = new Set();
 
     const themeToggle = document.getElementById('theme-toggle');
@@ -53,6 +52,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     showFeedBtn.classList.remove('bg-white', 'text-gray-900', 'dark:bg-gray-700', 'dark:text-white');
                     showGeneratorsBtn.classList.add('bg-white', 'text-gray-900', 'dark:bg-gray-700', 'dark:text-white');
                     showGeneratorsBtn.classList.remove('bg-blue-600', 'text-white');
+                    fetchFeed(user);
                 });
                 showGeneratorsBtn.addEventListener('click', () => {
                     feedContainer.classList.add('hidden');
@@ -64,7 +64,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
 
                 showFeedBtn.click();
-                fetchFeed(user);
             }
         } else {
             guestNav.classList.remove('hidden');
@@ -89,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('/api/friends/requests', { headers: { 'Authorization': `Bearer ${token}` } })
             .then(res => res.json()).then(data => {
                 const listEl = document.getElementById('friend-requests-list');
-                if (data.requests.length > 0) {
+                if (data.requests && data.requests.length > 0) {
                     notificationBadge.textContent = data.requests.length;
                     notificationBadge.classList.remove('hidden');
                     listEl.innerHTML = data.requests.map(req => `
@@ -136,9 +135,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (data.success) {
                         if (isFavorited) { userFavorites.delete(creationId); } else { userFavorites.add(creationId); }
                         updateFavoriteIcons();
-                        if(document.body.dataset.page === 'dashboard' && document.querySelector('.tab-btn.bg-blue-600')?.dataset.filter === 'favorites') {
-                            document.querySelector('.tab-btn.bg-blue-600').click();
-                        }
                     }
                 });
         }
@@ -150,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function () {
         feedContainer.innerHTML = '<div class="loader mx-auto"></div>';
         fetch('/api/feed', { headers: { 'Authorization': `Bearer ${token}` } })
             .then(res => res.json()).then(data => {
-                if (data.feed.length === 0) {
+                if (!data.feed || data.feed.length === 0) {
                     feedContainer.innerHTML = '<p class="text-center text-gray-500 py-10">Your feed is empty. Find and add friends to see their public creations here!</p>';
                     return;
                 }
@@ -158,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-6">
                         <div class="p-4 flex items-center justify-between">
                             <a href="/user/${item.creator_username}" class="flex items-center space-x-3">
-                                <img src="${item.creator_photoURL || 'https://placehold.co/40x40/7c3aed/ffffff?text=' + item.creator_username[0].toUpperCase()}" class="w-10 h-10 rounded-full">
+                                <img src="${item.creator_photoURL || 'https://placehold.co/40x40/7c3aed/ffffff?text=' + (item.creator_username ? item.creator_username[0].toUpperCase() : 'U')}" class="w-10 h-10 rounded-full">
                                 <span class="font-bold">${item.creator_username}</span>
                             </a>
                             <button class="favorite-btn p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" data-id="${item.id}"></button>
@@ -176,26 +172,62 @@ document.addEventListener('DOMContentLoaded', function () {
         const fileInput = document.getElementById('file-upload');
         const fileCountSpan = document.getElementById('file-count');
         fileInput.addEventListener('change', () => { fileCountSpan.textContent = fileInput.files.length > 0 ? `${fileInput.files.length} file(s) selected` : ''; });
+        
         document.getElementById('upload-form').addEventListener('submit', async e => {
             e.preventDefault(); if (fileInput.files.length === 0) return;
             loadingModal.classList.remove('hidden');
-            const user = auth.currentUser; if (!user) { window.location.href = '/login'; return; }
-            const token = await user.getIdToken();
+            const user = auth.currentUser;
+            const token = user ? await user.getIdToken() : null;
+            const headers = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const formData = new FormData(); formData.append('file', fileInput.files[0]);
-            fetch('/api/upload-cartoon', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData })
-                .then(res => res.json()).then(data => { if (data.error) { alert(data.error); } else { showPublishModal(data.creation_id, `data:image/jpeg;base64,${data.cartoon}`); } })
+            
+            fetch('/api/upload-cartoon', { method: 'POST', headers, body: formData })
+                .then(res => res.json()).then(data => {
+                    if (data.error) { alert(data.error); return; }
+                    const imgSrc = `data:image/jpeg;base64,${data.cartoon}`;
+                    if (data.creation_id) {
+                        showPublishModal(data.creation_id, imgSrc);
+                    } else {
+                        showGuestResult(imgSrc);
+                    }
+                })
                 .finally(() => { loadingModal.classList.add('hidden'); fileInput.value = ''; fileCountSpan.textContent = ''; });
         });
+
         document.getElementById('text-to-image-form').addEventListener('submit', async e => {
             e.preventDefault(); const prompt = document.getElementById('prompt').value; if(!prompt) return;
             loadingModal.classList.remove('hidden');
-            const user = auth.currentUser; if (!user) { window.location.href = '/login'; return; }
-            const token = await user.getIdToken();
-            fetch('/api/generate-from-text', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ prompt }) })
-                .then(res => res.json()).then(data => { if (data.error) { alert(data.error); } else { showPublishModal(data.creation_id, data.image_data_url); } })
+            const user = auth.currentUser;
+            const token = user ? await user.getIdToken() : null;
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            fetch('/api/generate-from-text', { method: 'POST', headers, body: JSON.stringify({ prompt }) })
+                .then(res => res.json()).then(data => {
+                    if (data.error) { alert(data.error); return; }
+                    if (data.creation_id) {
+                        showPublishModal(data.creation_id, data.image_data_url);
+                    } else {
+                        showGuestResult(data.image_data_url);
+                    }
+                })
                 .finally(() => { loadingModal.classList.add('hidden'); });
         });
     }
+    
+    const showGuestResult = (imgSrc) => {
+        const resultsArea = document.getElementById('results-area');
+        resultsArea.innerHTML = `
+            <div class="max-w-xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg text-center">
+                <h2 class="text-2xl font-bold mb-4">Here's Your Creation!</h2>
+                <img src="${imgSrc}" class="rounded-lg w-full mb-4">
+                <a href="${imgSrc}" download="art-weaver-creation.png" class="inline-block bg-green-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-600">Download</a>
+            </div>
+        `;
+        resultsArea.scrollIntoView({ behavior: 'smooth' });
+    };
 
     const showPublishModal = (creationId, imgSrc) => {
         const modal = document.getElementById('publish-modal');
@@ -225,11 +257,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }).then(res => res.json()).then(data => {
             if (data.success) {
                 modal.classList.add('hidden');
-                const navPoints = document.getElementById('nav-points');
-                if(navPoints) {
-                    const currentPoints = parseInt(navPoints.textContent) || 0;
-                    navPoints.textContent = `${currentPoints + (isPublic ? 10 : 0)} pts`;
-                }
             }
         });
     };
@@ -245,7 +272,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const locationDisplay = document.getElementById('location-display');
     if (locationDisplay) {
         fetch('https://ipapi.co/json/').then(res => res.json()).then(data => {
-            locationDisplay.textContent = `${data.city}, ${data.country_name}`;
+            if (data.city && data.country_name) {
+                locationDisplay.textContent = `${data.city}, ${data.country_name}`;
+                locationDisplay.href = `https://maps.google.com/?q=${data.latitude},${data.longitude}`;
+            } else {
+                locationDisplay.textContent = 'Location unavailable';
+            }
         }).catch(() => { locationDisplay.textContent = 'Location unavailable'; });
     }
 });

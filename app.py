@@ -10,17 +10,22 @@ import firebase_admin
 from firebase_admin import credentials, auth, firestore
 from whitenoise import WhiteNoise
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/')
 
+db = None
 try:
-    cred = credentials.Certificate('firebase-service-account.json')
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-    print("Firebase initialized successfully.")
+    secret_file_path = '/etc/secrets/firebase-service-account.json'
+    if os.path.exists(secret_file_path):
+        cred = credentials.Certificate(secret_file_path)
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+    else:
+        cred = credentials.Certificate('firebase-service-account.json')
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
 except Exception as e:
-    print(f"!!!!!!!!!! FIREBASE INITIALIZATION FAILED: {e} !!!!!!!!!!!")
-    db = None
+    print(f"Firebase initialization failed: {e}")
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
@@ -92,9 +97,10 @@ def messages_with_user_page(username):
 
 @app.route('/explore')
 def explore():
+    if not db: abort(503, description="Database service is unavailable.")
     search_query = request.args.get('q', '').strip()
     creations, users = [], []
-    if db:
+    try:
         if search_query:
             user_query = db.collection('users').where('username', '>=', search_query).where('username', '<=', search_query + '\uf8ff').limit(5)
             users = [doc.to_dict() for doc in user_query.stream()]
@@ -105,23 +111,29 @@ def explore():
         else:
             creation_query = db.collection('creations').where('is_public', '==', True).order_by('timestamp', direction=firestore.Query.DESCENDING).limit(21)
             creations = [doc.to_dict() for doc in creation_query.stream()]
+    except Exception as e:
+        print(f"Error in explore: {e}")
+
     return render_template('explore.html', creations=creations, users=users, search_query=search_query)
 
 @app.route('/user/<username>')
 def user_profile(username):
-    if not db: abort(500, description="Database not connected")
+    if not db: abort(503, description="Database service is unavailable.")
     user_query = db.collection('users').where('username', '==', username).limit(1).get()
     if not user_query: abort(404, description="User not found")
     user_data = user_query[0].to_dict()
     user_id = user_query[0].id
     user_data['uid'] = user_id
     creations_query = db.collection('creations').where('user_id', '==', user_id).where('is_public', '==', True).order_by('timestamp', direction=firestore.Query.DESCENDING).stream()
-    public_creations = [doc.to_dict() for doc in creations_query]
+    public_creations = []
+    for doc in creations_query:
+        c = doc.to_dict(); c['id'] = doc.id
+        public_creations.append(c)
     return render_template('user_profile.html', user=user_data, creations=public_creations)
 
 @app.route('/creation/<creation_id>')
 def view_creation(creation_id):
-    if not db: abort(500, description="Database not connected")
+    if not db: abort(503, description="Database service is unavailable.")
     creation_doc = db.collection('creations').document(creation_id).get()
     if not creation_doc.exists: abort(404, description="Creation not found")
     creation_data = creation_doc.to_dict()
@@ -131,28 +143,21 @@ def view_creation(creation_id):
 
 @app.route('/api/check_username', methods=['POST'])
 def check_username():
-    if not db: 
-        print("API Error: Database not configured")
-        return jsonify({'error': 'Database not configured'}), 500
+    if not db: return jsonify({'error': 'Database service is unavailable.'}), 503
     try:
         username = request.get_json().get('username')
-        if not username: 
-            return jsonify({'error': 'Username not provided'}), 400
-        
-        print(f"Checking username: {username}")
-        query = db.collection('users').where('username', '==', username).limit(1).get()
-        print(f"Query returned {len(query)} results.")
-        
-        return jsonify({'isAvailable': len(query) == 0})
+        if not username: return jsonify({'error': 'Username not provided'}), 400
+        query = db.collection('users').where('username', '==', username).limit(1).stream()
+        is_available = not any(query)
+        return jsonify({'isAvailable': is_available})
     except Exception as e:
-        # This is the most important part: it will print the hidden error to the logs.
-        print(f"!!!!!!!!!! ERROR IN /api/check_username: {e} !!!!!!!!!!!")
+        print(f"Error in /api/check_username: {e}")
         return jsonify({'error': 'A server error occurred.'}), 500
 
 @app.route('/api/upload-cartoon', methods=['POST'])
 def upload_cartoon():
     user = verify_firebase_token(request)
-    if not user or 'file' not in request.files: return jsonify({'error': 'Unauthorized or no file'}), 401
+    if 'file' not in request.files: return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
     if file.filename == '' or not allowed_file(file.filename): return jsonify({'error': 'Invalid file'}), 400
     filename = secure_filename(file.filename)
@@ -162,24 +167,26 @@ def upload_cartoon():
     if cartoon_result is None:
         os.remove(filepath)
         return jsonify({'error': 'Failed to process image'}), 500
-    with open(filepath, "rb") as image_file:
-        original_base64 = base64.b64encode(image_file.read()).decode('utf-8')
     cartoon_base64 = image_to_base64(cartoon_result)
+    creation_id = None
+    if user and db:
+        with open(filepath, "rb") as image_file: original_base64 = base64.b64encode(image_file.read()).decode('utf-8')
+        db.collection('users').document(user['uid']).update({'points': firestore.Increment(1)})
+        doc_ref = db.collection('creations').add({
+            'user_id': user['uid'], 'type': 'cartoon', 'original_image_b64': original_base64,
+            'generated_image_b64': cartoon_base64, 'is_public': False, 'tags': [],
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
+        creation_id = doc_ref[1].id
     os.remove(filepath)
-    db.collection('users').document(user['uid']).update({'points': firestore.Increment(1)})
-    doc_ref = db.collection('creations').add({
-        'user_id': user['uid'], 'type': 'cartoon', 'original_image_b64': original_base64,
-        'generated_image_b64': cartoon_base64, 'is_public': False, 'tags': [],
-        'timestamp': firestore.SERVER_TIMESTAMP
-    })
-    return jsonify({'original': original_base64, 'cartoon': cartoon_base64, 'creation_id': doc_ref[1].id})
+    return jsonify({'cartoon': cartoon_base64, 'creation_id': creation_id})
 
 @app.route('/api/generate-from-text', methods=['POST'])
 def generate_from_text():
     user = verify_firebase_token(request)
-    if not user: return jsonify({'error': 'Unauthorized'}), 401
     prompt = request.get_json().get('prompt')
     if not prompt: return jsonify({'error': 'Prompt is required'}), 400
+    if not GEMINI_API_KEY: return jsonify({'error': 'AI service is not configured.'}), 503
     api_url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key={GEMINI_API_KEY}"
     payload = {"instances": [{"prompt": prompt}], "parameters": {"sampleCount": 1}}
     try:
@@ -189,17 +196,28 @@ def generate_from_text():
         if result.get("predictions") and result["predictions"][0].get("bytesBase64Encoded"):
             base64_image = result["predictions"][0]["bytesBase64Encoded"]
             image_data_url = f"data:image/png;base64,{base64_image}"
-            db.collection('users').document(user['uid']).update({'points': firestore.Increment(3)})
-            doc_ref = db.collection('creations').add({
-                'user_id': user['uid'], 'type': 'text-to-image', 'prompt': prompt,
-                'generated_image_b64': base64_image, 'is_public': False, 'tags': [],
-                'timestamp': firestore.SERVER_TIMESTAMP
-            })
-            return jsonify({'image_data_url': image_data_url, 'creation_id': doc_ref[1].id})
-        else:
-            return jsonify({'error': 'AI model returned an unexpected response.'}), 500
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'An error occurred with the AI service: {e}'}), 500
+            creation_id = None
+            if user and db:
+                db.collection('users').document(user['uid']).update({'points': firestore.Increment(3)})
+                doc_ref = db.collection('creations').add({
+                    'user_id': user['uid'], 'type': 'text-to-image', 'prompt': prompt,
+                    'generated_image_b64': base64_image, 'is_public': False, 'tags': [],
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+                creation_id = doc_ref[1].id
+            return jsonify({'image_data_url': image_data_url, 'creation_id': creation_id})
+        else: return jsonify({'error': 'AI model returned an unexpected response.'}), 500
+    except requests.exceptions.RequestException as e: return jsonify({'error': f'An error occurred with the AI service: {e}'}), 500
+
+@app.route('/api/firebase-config')
+def firebase_config():
+    config = {
+        "apiKey": os.environ.get("FIREBASE_API_KEY"), "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN"),
+        "projectId": os.environ.get("FIREBASE_PROJECT_ID"), "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET"),
+        "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID"), "appId": os.environ.get("FIREBASE_APP_ID")
+    }
+    if not all(config.values()): return jsonify({"error": "Firebase configuration is incomplete on the server."}), 500
+    return jsonify(config)
 
 @app.route('/api/user/profile', methods=['GET'])
 def get_user_profile():
@@ -445,4 +463,4 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
