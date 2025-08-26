@@ -1,6 +1,4 @@
 import os
-import cv2
-import numpy as np
 import base64
 import json
 import requests
@@ -42,22 +40,6 @@ def verify_firebase_token(request):
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def image_to_base64(image_array):
-    _, buffer = cv2.imencode('.jpg', image_array)
-    return base64.b64encode(buffer).decode('utf-8')
-
-def cartoonize_image(image_path):
-    try:
-        img = cv2.imread(image_path)
-        if img is None: return None
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray = cv2.medianBlur(gray, 5)
-        edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 9)
-        color = cv2.bilateralFilter(img, 9, 250, 250)
-        cartoon = cv2.bitwise_and(color, color, mask=edges)
-        return cartoon
-    except Exception: return None
 
 def award_points(user_id, is_public, was_public_before):
     if not user_id or not db: return
@@ -160,26 +142,39 @@ def upload_cartoon():
     if 'file' not in request.files: return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
     if file.filename == '' or not allowed_file(file.filename): return jsonify({'error': 'Invalid file'}), 400
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-    cartoon_result = cartoonize_image(filepath)
-    if cartoon_result is None:
-        os.remove(filepath)
-        return jsonify({'error': 'Failed to process image'}), 500
-    cartoon_base64 = image_to_base64(cartoon_result)
-    creation_id = None
-    if user and db:
-        with open(filepath, "rb") as image_file: original_base64 = base64.b64encode(image_file.read()).decode('utf-8')
-        db.collection('users').document(user['uid']).update({'points': firestore.Increment(1)})
-        doc_ref = db.collection('creations').add({
-            'user_id': user['uid'], 'type': 'cartoon', 'original_image_b64': original_base64,
-            'generated_image_b64': cartoon_base64, 'is_public': False, 'tags': [],
-            'timestamp': firestore.SERVER_TIMESTAMP
-        })
-        creation_id = doc_ref[1].id
-    os.remove(filepath)
-    return jsonify({'cartoon': cartoon_base64, 'creation_id': creation_id})
+    if not HUGGINGFACE_API_KEY: return jsonify({'error': 'AI image generation service is not configured.'}), 503
+
+    API_URL = "https://api-inference.huggingface.co/models/cagliostrolab/animagine-xl-3.0"
+    headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
+    
+    try:
+        image_bytes = file.read()
+        response = requests.post(API_URL, headers=headers, data=image_bytes)
+        
+        if response.status_code == 200 and "image" in response.headers.get("content-type", ""):
+            cartoon_base64 = base64.b64encode(response.content).decode("utf-8")
+            creation_id = None
+
+            if user and db:
+                original_base64 = base64.b64encode(image_bytes).decode("utf-8")
+                db.collection('users').document(user['uid']).update({'points': firestore.Increment(1)})
+                doc_ref = db.collection('creations').add({
+                    'user_id': user['uid'], 'type': 'cartoon', 'original_image_b64': original_base64,
+                    'generated_image_b64': cartoon_base64, 'is_public': False, 'tags': [],
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+                creation_id = doc_ref[1].id
+            
+            return jsonify({'cartoon': cartoon_base64, 'creation_id': creation_id})
+        else:
+            error_data = response.json()
+            error_message = error_data.get('error', 'An unknown error occurred with the AI service.')
+            if 'is currently loading' in error_message:
+                return jsonify({'error': 'The AI model is starting up. Please wait about 30 seconds and try again.'}), 503
+            return jsonify({'error': error_message}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'A server error occurred: {e}'}), 500
 
 @app.route('/api/generate-from-text', methods=['POST'])
 def generate_from_text():
