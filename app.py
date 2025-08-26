@@ -209,25 +209,23 @@ def generate_from_text():
         response.raise_for_status()
         data = response.json()
         
-        if data.get("artifacts") and len(data["artifacts"]) > 0:
-            base64_image = data["artifacts"][0].get("base64")
-            image_data_url = f"data:image/png;base64,{base64_image}"
-            creation_id = None
+        base64_image = data["artifacts"][0]["base64"]
+        image_data_url = f"data:image/png;base64,{base64_image}"
+        creation_id = None
 
-            if user and db:
-                db.collection('users').document(user['uid']).update({'points': firestore.Increment(3)})
-                doc_ref = db.collection('creations').add({
-                    'user_id': user['uid'], 'type': 'text-to-image', 'prompt': prompt,
-                    'generated_image_b64': base64_image, 'is_public': False, 'tags': [],
-                    'timestamp': firestore.SERVER_TIMESTAMP
-                })
-                creation_id = doc_ref[1].id
+        if user and db:
+            db.collection('users').document(user['uid']).update({'points': firestore.Increment(3)})
+            doc_ref = db.collection('creations').add({
+                'user_id': user['uid'], 'type': 'text-to-image', 'prompt': prompt,
+                'generated_image_b64': base64_image, 'is_public': False, 'tags': [],
+                'timestamp': firestore.SERVER_TIMESTAMP
+            })
+            creation_id = doc_ref[1].id
 
-            return jsonify({'image_data_url': image_data_url, 'creation_id': creation_id})
-        else:
-            return jsonify({'error': 'AI model returned no images.'}), 500
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'An error occurred with the AI service: {e}'}), 500
+        return jsonify({'image_data_url': image_data_url, 'creation_id': creation_id})
+    except Exception as e:
+        print(f"!!!!!!!!!! TEXT-TO-IMAGE ERROR: {e} !!!!!!!!!!!")
+        return jsonify({'error': 'An error occurred with the AI service. The prompt might be unsafe or the service may be down.'}), 500
 
 @app.route('/api/firebase-config')
 def firebase_config():
