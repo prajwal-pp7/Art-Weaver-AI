@@ -31,7 +31,7 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', "")
+STABILITY_API_KEY = os.environ.get('STABILITY_API_KEY', "")
 
 def verify_firebase_token(request):
     auth_header = request.headers.get('Authorization')
@@ -186,17 +186,34 @@ def generate_from_text():
     user = verify_firebase_token(request)
     prompt = request.get_json().get('prompt')
     if not prompt: return jsonify({'error': 'Prompt is required'}), 400
-    if not GEMINI_API_KEY: return jsonify({'error': 'AI service is not configured.'}), 503
-    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key={GEMINI_API_KEY}"
-    payload = {"instances": [{"prompt": prompt}], "parameters": {"sampleCount": 1}}
+    if not STABILITY_API_KEY: return jsonify({'error': 'AI image generation service is not configured.'}), 503
+    
+    api_host = 'https://api.stability.ai'
+    engine_id = "stable-diffusion-v1-6"
+    api_url = f"{api_host}/v1/generation/{engine_id}/text-to-image"
+
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {STABILITY_API_KEY}"
+    }
+
+    payload = {
+        "text_prompts": [{"text": prompt}],
+        "cfg_scale": 7, "height": 1024, "width": 1024,
+        "samples": 1, "steps": 30,
+    }
+    
     try:
-        response = requests.post(api_url, json=payload)
+        response = requests.post(api_url, headers=headers, json=payload)
         response.raise_for_status()
-        result = response.json()
-        if result.get("predictions") and result["predictions"][0].get("bytesBase64Encoded"):
-            base64_image = result["predictions"][0]["bytesBase64Encoded"]
+        data = response.json()
+        
+        if data.get("artifacts") and len(data["artifacts"]) > 0:
+            base64_image = data["artifacts"][0].get("base64")
             image_data_url = f"data:image/png;base64,{base64_image}"
             creation_id = None
+
             if user and db:
                 db.collection('users').document(user['uid']).update({'points': firestore.Increment(3)})
                 doc_ref = db.collection('creations').add({
@@ -205,9 +222,12 @@ def generate_from_text():
                     'timestamp': firestore.SERVER_TIMESTAMP
                 })
                 creation_id = doc_ref[1].id
+
             return jsonify({'image_data_url': image_data_url, 'creation_id': creation_id})
-        else: return jsonify({'error': 'AI model returned an unexpected response.'}), 500
-    except requests.exceptions.RequestException as e: return jsonify({'error': f'An error occurred with the AI service: {e}'}), 500
+        else:
+            return jsonify({'error': 'AI model returned no images.'}), 500
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'An error occurred with the AI service: {e}'}), 500
 
 @app.route('/api/firebase-config')
 def firebase_config():
