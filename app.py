@@ -167,8 +167,13 @@ def upload_cartoon():
             
             return jsonify({'cartoon': cartoon_base64, 'creation_id': creation_id})
         else:
-            error_data = response.json()
-            error_message = error_data.get('error', 'An unknown error occurred with the AI service.')
+            error_message = "An unknown error occurred with the AI service."
+            if "application/json" in response.headers.get("content-type", ""):
+                error_data = response.json()
+                error_message = error_data.get('error', error_message)
+            else:
+                error_message = response.text
+
             if 'is currently loading' in error_message:
                 return jsonify({'error': 'The AI model is starting up. Please wait about 30 seconds and try again.'}), 503
             return jsonify({'error': error_message}), 500
