@@ -31,7 +31,7 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-STABILITY_API_KEY = os.environ.get('STABILITY_API_KEY', "")
+HUGGINGFACE_API_KEY = os.environ.get('HUGGINGFACE_API_KEY', "")
 
 def verify_firebase_token(request):
     auth_header = request.headers.get('Authorization')
@@ -186,46 +186,39 @@ def generate_from_text():
     user = verify_firebase_token(request)
     prompt = request.get_json().get('prompt')
     if not prompt: return jsonify({'error': 'Prompt is required'}), 400
-    if not STABILITY_API_KEY: return jsonify({'error': 'AI image generation service is not configured.'}), 503
+    if not HUGGINGFACE_API_KEY: return jsonify({'error': 'AI image generation service is not configured.'}), 503
     
-    api_host = 'https://api.stability.ai'
-    engine_id = "stable-diffusion-xl-1024-v1-0"
-    api_url = f"{api_host}/v1/generation/{engine_id}/text-to-image"
-
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {STABILITY_API_KEY}"
-    }
-
-    payload = {
-        "text_prompts": [{"text": prompt}],
-        "cfg_scale": 7, "height": 1024, "width": 1024,
-        "samples": 1, "steps": 30,
-    }
+    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+    headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
+    payload = {"inputs": prompt}
     
     try:
-        response = requests.post(api_url, headers=headers, json=payload)
-        response.raise_for_status()
-        data = response.json()
+        response = requests.post(API_URL, headers=headers, json=payload)
         
-        base64_image = data["artifacts"][0]["base64"]
-        image_data_url = f"data:image/png;base64,{base64_image}"
-        creation_id = None
+        if response.status_code == 200 and "image" in response.headers.get("content-type", ""):
+            base64_image = base64.b64encode(response.content).decode("utf-8")
+            image_data_url = f"data:image/jpeg;base64,{base64_image}"
+            creation_id = None
 
-        if user and db:
-            db.collection('users').document(user['uid']).update({'points': firestore.Increment(3)})
-            doc_ref = db.collection('creations').add({
-                'user_id': user['uid'], 'type': 'text-to-image', 'prompt': prompt,
-                'generated_image_b64': base64_image, 'is_public': False, 'tags': [],
-                'timestamp': firestore.SERVER_TIMESTAMP
-            })
-            creation_id = doc_ref[1].id
+            if user and db:
+                db.collection('users').document(user['uid']).update({'points': firestore.Increment(3)})
+                doc_ref = db.collection('creations').add({
+                    'user_id': user['uid'], 'type': 'text-to-image', 'prompt': prompt,
+                    'generated_image_b64': base64_image, 'is_public': False, 'tags': [],
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+                creation_id = doc_ref[1].id
+            
+            return jsonify({'image_data_url': image_data_url, 'creation_id': creation_id})
+        else:
+            error_data = response.json()
+            error_message = error_data.get('error', 'An unknown error occurred with the AI service.')
+            if 'is currently loading' in error_message:
+                return jsonify({'error': 'The AI model is starting up. Please wait about 30 seconds and try again.'}), 503
+            return jsonify({'error': error_message}), 500
 
-        return jsonify({'image_data_url': image_data_url, 'creation_id': creation_id})
     except Exception as e:
-        print(f"!!!!!!!!!! TEXT-TO-IMAGE ERROR: {e} !!!!!!!!!!!")
-        return jsonify({'error': 'An error occurred with the AI service. The prompt might be unsafe or the service may be down.'}), 500
+        return jsonify({'error': f'A server error occurred while contacting the AI service: {e}'}), 500
 
 @app.route('/api/firebase-config')
 def firebase_config():
